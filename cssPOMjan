@@ -1,0 +1,17 @@
+x = str(input("what to test on... "))
+
+lowercase = {}
+uppercase = {}
+count = 0
+
+for n in x:
+    if n.islower():
+        lowercase[n] = lowercase.get(n, 0) + 1
+    elif n.isupper():
+        uppercase[n.lower()] = uppercase.get(n.lower(), 0) +1
+
+for n in lowercase:
+    if n in uppercase:
+        count += lowercase[n]*uppercase[n]
+    
+print(count)
