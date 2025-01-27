@@ -55,7 +55,7 @@ def circleDetect(ig):
 
         # Shows image and wait for user to close it
         return img
-        
+    return ig
 
 
 # Fetches the video that will try to detect the rolling circle on
