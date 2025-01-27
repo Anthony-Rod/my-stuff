@@ -1,0 +1,82 @@
+import cv2 
+import numpy as np 
+
+
+"""def dist(point1, point2):
+    return abs((point1[0]-point2[0])**2 - (point1[1]-point2[1])**2)"""
+
+
+
+
+def circleDetect(ig):
+    # Read circle detection image, seeing if it is just an image or a video
+    if type(frame)==str:
+        img = cv2.imread(ig, cv2.IMREAD_COLOR) 
+    else:
+        img = ig
+    # Apply a gray mask in order to focus on the top of can being detected
+    hsv_image = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    
+    silver_min = np.array([0, 0, 0])
+    silver_max = np.array([170, 30, 250])
+
+    mask = cv2.inRange(hsv_image, silver_min, silver_max)
+
+    final_hsv = cv2.bitwise_and(img, img, mask=mask)
+
+    # Convert to grayscale
+    gray = cv2.cvtColor(final_hsv, cv2.COLOR_BGR2GRAY)
+
+    # Blur to accentuate circle in can, by basically removing background through intense blur
+    gray_blurred = cv2.medianBlur(gray, 41)
+
+    # Detects all possible circles in image
+    detected_circles = cv2.HoughCircles(gray_blurred,  
+                    cv2.HOUGH_GRADIENT, 1.1, 40, param1 = 53, 
+                param2 = 74, minRadius = 60, maxRadius = 500) 
+    
+    # Verifies that circles exist in image
+    if detected_circles is not None: 
+        main_circle = (0, 0, 0)
+
+        detected_circles = np.uint16(np.around(detected_circles)) 
+
+        # Checks for circle that exist on the can you are detecting from, and then takes the largest one (outer rim)
+        for pt in detected_circles[0, :]: 
+            (a, b, r) = (pt[0], pt[1], pt[2])
+
+            if r >= main_circle[2]:
+                main_circle = (a, b, r)
+
+        # Places circle on the image
+        cv2.circle(img, (main_circle[0], main_circle[1]), main_circle[2], (0, 255, 0), 2) 
+
+        cv2.circle(img, (main_circle[0], main_circle[1]), 1, (0, 0, 255), 3) 
+
+        # Shows image and wait for user to close it
+        return img
+        
+
+
+# Fetches the video that will try to detect the rolling circle on
+# Verifies that the video is being run and fetches each frame to be tested on
+image = cv2.VideoCapture('website_project/IMG_7009.MOV')
+if image.isOpened():
+    while True:
+        try:
+            ret, frame = image.read()
+
+
+            if ret == True:
+                cv2.imshow('Detected Circles', circleDetect(frame))
+
+                if cv2.waitKey(25) & 0xFF == ord('q'):
+                    break
+            else:
+                break
+        except Exception:
+            cv2.imshow('Detected Circles', frame)
+
+
+image.release()
+cv2.destroyAllWindows()
