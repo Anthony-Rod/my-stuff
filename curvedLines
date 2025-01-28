@@ -1,0 +1,34 @@
+import cv2
+import numpy as np
+
+def dist(point1, point2):
+    return abs((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
+# Load the image
+image = cv2.imread("images.png", cv2.IMREAD_COLOR)
+
+gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+# Preprocess the image
+blurred = cv2.GaussianBlur(gray, (9, 9), 1)  # Reduce noise
+edges = cv2.Canny(blurred, 100, 225)  # Detect edges
+
+# Find contours
+indices = np.where(edges != [0])
+coordinates = zip(indices[1], indices[0])
+
+
+list = []
+for n in coordinates:
+    if dist(n, (0, 0))>=40:
+        if list == []:
+            list.append(n)
+        elif list != []:
+            if dist(n, list[-1])<=5:
+                list.append(n)
+        if len(list)>=2:
+            cv2.line(image, n, list[-1], (0, 255, 0), 2)
+    #cv2.circle(image, n, 80, (0, 0, 255), -1)
+# Show results
+cv2.imshow("Detected Curves", image)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
