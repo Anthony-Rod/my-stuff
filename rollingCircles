@@ -28,12 +28,12 @@ def circleDetect(ig):
     gray = cv2.cvtColor(final_hsv, cv2.COLOR_BGR2GRAY)
 
     # Blur to accentuate circle in can, by basically removing background through intense blur
-    gray_blurred = cv2.medianBlur(gray, 41)
+    gray_blurred = cv2.medianBlur(gray, 45)
 
     # Detects all possible circles in image
     detected_circles = cv2.HoughCircles(gray_blurred,  
-                    cv2.HOUGH_GRADIENT, 1.1, 40, param1 = 53, 
-                param2 = 74, minRadius = 60, maxRadius = 500) 
+                    cv2.HOUGH_GRADIENT, 1.1, 50, param1 = 55, 
+                param2 = 75, minRadius = 70, maxRadius = 1000) 
     
     # Verifies that circles exist in image
     if detected_circles is not None: 
@@ -42,25 +42,32 @@ def circleDetect(ig):
         detected_circles = np.uint16(np.around(detected_circles)) 
 
         # Checks for circle that exist on the can you are detecting from, and then takes the largest one (outer rim)
-        for pt in detected_circles[0, :]: 
+        """for pt in detected_circles[0, :]: 
             (a, b, r) = (pt[0], pt[1], pt[2])
 
             if r >= main_circle[2]:
-                main_circle = (a, b, r)
+                main_circle = (a, b, r)"""
+        main_circle = detected_circles[0][0]
 
         # Places circle on the image
         cv2.circle(img, (main_circle[0], main_circle[1]), main_circle[2], (0, 255, 0), 2) 
 
         cv2.circle(img, (main_circle[0], main_circle[1]), 1, (0, 0, 255), 3) 
-
+        saved_circle = main_circle[0][0]
         # Shows image and wait for user to close it
         return img
-    return ig
+    else:
+        cv2.circle(img, (saved_circle[0], saved_circle[1]), saved_circle[2], (0, 255, 0), 2) 
+
+        cv2.circle(img, (saved_circle[0], saved_circle[1]), 1, (0, 0, 255), 3) 
+        return img
+
+        
 
 
 # Fetches the video that will try to detect the rolling circle on
 # Verifies that the video is being run and fetches each frame to be tested on
-image = cv2.VideoCapture('website_project/IMG_7009.MOV')
+image = cv2.VideoCapture('website_project/circleDetection/IMG_7009.MOV')
 if image.isOpened():
     while True:
         try:
@@ -75,8 +82,9 @@ if image.isOpened():
             else:
                 break
         except Exception:
-            cv2.imshow('Detected Circles', frame)
+            pass
 
 
 image.release()
 cv2.destroyAllWindows()
+
