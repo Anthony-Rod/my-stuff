@@ -3,32 +3,87 @@ import numpy as np
 
 def dist(point1, point2):
     return abs((point1[0] - point2[0])**2 + (point1[1] - point2[1])**2)
-# Load the image
-image = cv2.imread("images.png", cv2.IMREAD_COLOR)
-
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-# Preprocess the image
-blurred = cv2.GaussianBlur(gray, (9, 9), 1)  # Reduce noise
-edges = cv2.Canny(blurred, 100, 225)  # Detect edges
-
-# Find contours
-indices = np.where(edges != [0])
-coordinates = zip(indices[1], indices[0])
 
 
-list = []
-for n in coordinates:
-    if dist(n, (0, 0))>=40:
-        if list == []:
-            list.append(n)
-        elif list != []:
-            if dist(n, list[-1])<=5:
+def x_dist(point1, point2):
+    return abs(point1[0]-point2[0])
+
+
+def curvedLines(img):
+
+    """vertices = np.array([[(width // 4, height // 2), (3 * width // 4, height // 2),
+                             (3* width // 4,  height), (width // 4, height)]], dtype=np.int32)
+    mask = np.zeros_like(img)
+    cv2.fillPoly(mask, vertices, (255, 255, 255))
+    masked_image = cv2.bitwise_and(img, mask)"""
+    output = img.copy()
+    gray = cv2.cvtColor(img,  cv2.COLOR_BGR2GRAY)
+
+    # Preprocess the image
+    blurred = cv2.GaussianBlur(gray, (7, 7), 2)  # Reduce noise
+    edges = cv2.Canny(blurred, 100, 150)  # Detect edges
+    
+    contours, hierarchy = cv2.findContours(edges,  
+    cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+
+    # Find contours
+    indices = np.where(edges != [0])
+    coordinates = zip(indices[1], indices[0])
+
+
+    center_list = {}
+    for n in contours:
+        for a in n:
+            for x in a:
+                if center_list == {}:
+                        center_list[tuple(x)] = 0
+                r = center_list.keys()
+                for x_value in list(r):
+
+                    if tuple(x) not in r and tuple(x)[0] != x_value[0]:
+                        center_list[tuple(x)] = 0
+                    elif tuple(x)[0] == x_value[0]:
+                        center_list[x_value] = tuple(x)
+    for key, value in center_list.items():
+        if value != 0:
+            cv2.circle(output, key, 1, (255, 0, 0), -1)
+            cv2.circle(output, value, 1, (255, 0, 255), -1)
+            cv2.circle(output, (key[0], (value[1]+key[1])//2), 1, (0, 255, 0), -1)
+                        
+                
+
+    """for n in coordinates:
+        if dist(n, (0, 0))>=40:
+            if list == []:
                 list.append(n)
-        if len(list)>=2:
-            cv2.line(image, n, list[-1], (0, 255, 0), 2)
-    #cv2.circle(image, n, 80, (0, 0, 255), -1)
-# Show results
-cv2.imshow("Detected Curves", image)
+            elif list != []:
+                if dist(n, list[-1])<=5:
+                    list.append(n)
+            if len(list)>=2:
+                cv2.line(output, n, list[-1], (0, 255, 0), 1)"""
+        #cv2.circle(image, n, 80, (0, 0, 255), -1)
+    return output
+
+image = cv2.imread("parallelLines/curvy3.png", cv2.IMREAD_COLOR)
+
+
+"""if image.isOpened():
+    while True:
+        try:
+            ret, frame = image.read()
+
+
+            if ret == True:
+                cv2.imshow('Detected curves', curvedLines(frame))
+
+                if cv2.waitKey(25) & 0xFF == ord('q'):
+                    break
+            else:
+                break
+        except Exception:
+            cv2.imshow('Detected Curves',frame)"""
+
+cv2.imshow('Detected curves', curvedLines(image))
 cv2.waitKey(0)
 cv2.destroyAllWindows()
+
