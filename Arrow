@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from PIL import Image
+import PIL
 
 # Read image
 try:
@@ -10,7 +11,7 @@ except Exception:
 
 
 arrow = Image.open("parallelLines/arrow3.png").convert("RGBA")
-
+arrow = arrow.rotate(180, PIL.Image.NEAREST, expand=1)
 slopes = []
 MIN_DISTANCE=50
 while True:
