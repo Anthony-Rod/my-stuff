@@ -1,214 +1,172 @@
 import cv2
 import numpy as np
 from PIL import Image
-
-def silver_threshold(img):
-    hsv_i = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    lower_silver = np.array([0, 0, 210])
-    upper_silver = np.array([190, 55, 255])
-    thresh = cv2.inRange(hsv_i, lower_silver, upper_silver)
-    return thresh
-
-def canny(img):
-    if img is None:
-        return None
-    thresh = silver_threshold(img)
-    height, width = img.shape[:2]
-    region_of_interest(img, width, height)
-    blur = cv2.GaussianBlur(thresh, (3, 3), 0)
-    edges = cv2.Canny(blur, 25, 75)
-    return edges
-
-
-def region_of_interest(canny, width, height):
-    print(width, height)
-    mask = np.zeros_like(canny)
-    leftmost_white = (0,0)
-    rightmost_white=(0,0)
-    for x in range(width):
-        if canny.getpixel(x, 10)
-    # Dynamically setting region of interest based on frame dimensions
-    triangle = np.array([[
-        (int(width * 0.1), height),    # Bottom-left
-        (int(width * 0.5), int(height * 0.6)),  # Top-center
-        (int(width * 1), height)     # Bottom-right
-    ]], np.int32)
-   
-    cv2.fillPoly(mask, triangle, 255)
-    return cv2.bitwise_and(canny, mask)
-
-
-def houghLines(cropped_canny):
-    return cv2.HoughLinesP(cropped_canny, 2, np.pi/180, 100, np.array([]), minLineLength=30, maxLineGap=10)
-
-
-def addWeighted(frame, line_image):
-    return cv2.addWeighted(frame, 0.8, line_image, 1, 1)
-
-
-def display_lines(img, lines, center_line=None):
-    line_image = np.zeros_like(img)
-   
-    if lines is not None:
-        for line in lines:
-            for x1, y1, x2, y2 in line:
-                cv2.line(line_image, (x1, y1), (x2, y2), (0, 0, 255), 10)  # Red lines for lanes
-
-
-    if center_line is not None:
-        x1, y1, x2, y2 = center_line
-        cv2.line(line_image, (x1, y1), (x2, y2), (0, 255, 0), 10)  # Green center line
-
-
-    return line_image
-
-
-def make_points(image, line):
-    slope, intercept = line
-    y1 = image.shape[0]
-    y2 = int(y1 * 0.6)  # 60% of height
-
-
-    if slope == 0:  
-        return None  # Avoid divide-by-zero errors
-
-
-    x1 = int((y1 - intercept) / slope)
-    x2 = int((y2 - intercept) / slope)
-    return [[x1, y1, x2, y2]]
-
-
-def average_slope_intercept(image, lines):
-    left_fit = []
-    right_fit = []
-
-    print(lines)
-    if lines is None:
-        return None, None
-
-
-    for line in lines:
-        for x1, y1, x2, y2 in line:
-            fit = np.polyfit((x1, x2), (y1, y2), 1)  # Fit line (y = mx + b)
-            slope = fit[0]
-            intercept = fit[1]
-            if slope < 0:
-                left_fit.append((slope, intercept))
-            else:
-                right_fit.append((slope, intercept))
-
-
-    if len(left_fit) == 0 or len(right_fit) == 0:
-        return None, None  # Avoid errors if no lane is detected
-
-
-    left_fit_avg = np.average(left_fit, axis=0)
-    right_fit_avg = np.average(right_fit, axis=0)
-
-
-    left_line = make_points(image, left_fit_avg)
-    right_line = make_points(image, right_fit_avg)
-
-
-    return [left_line, right_line], (left_line, right_line)
-
-
-def compute_center_line(left_line, right_line):
-    if left_line is None or right_line is None:
-        return None  # Avoid drawing if one lane is missing
-
-
-    x1_left, y1_left, x2_left, y2_left = left_line[0]
-    x1_right, y1_right, x2_right, y2_right = right_line[0]
-
-
-    x1_center = (x1_left + x1_right) // 2
-    y1_center = (y1_left + y1_right) // 2
-    x2_center = (x2_left + x2_right) // 2
-    y2_center = (y2_left + y2_right) // 2
-
-
-    return [x1_center, y1_center, x2_center, y2_center]
-
-
-cap = cv2.VideoCapture("curvedParallelLines/video-24859.MOV")
-
-
-# Load the transparent image (ensure it's RGBA for transparency)
-overlay_image = Image.open("curvedParallelLines/arrow3.png").convert("RGBA")
-# Makes the arrow transparent
-# overlay_image.putalpha(100)
-
-# Get video properties (e.g., width, height, FPS)
-frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-
-# Resize the overlay image (smaller size for the corner)
-overlay_width = 200  # Set your desired overlay width
-overlay_height = 200  # Set your desired overlay height
-overlay_resized = overlay_image.resize((overlay_width, overlay_height))
-
-
-# Rotate the image 90 degrees counter-clockwise
-overlay_rotated = overlay_resized.rotate(90, expand=True)
-
-
-# Get new dimensions of the rotated image
-overlay_rotated_width, overlay_rotated_height = overlay_rotated.size
-
-
-while cap.isOpened():
-    ret, frame = cap.read()
-    if not ret:
-        break  # Stop if no more frames
-
-
-    height, width, _ = frame.shape  # Get dynamic dimensions
-    cropped_frame = frame[0: height-800, 0:width-10, :]
-    canny_image = canny(cropped_frame)
-
-
-    if canny_image is None:
-        continue  # Skip frame if processing failed
-
-
-    cropped_canny = region_of_interest(canny_image, width, height)
-    lines = houghLines(cropped_canny)
-    averaged_lines, lane_lines = average_slope_intercept(cropped_frame, lines)
-
-
-    center_line = None
-    if lane_lines is not None:
-        left_line, right_line = lane_lines
-        center_line = compute_center_line(left_line, right_line)
-
-
-    line_image = display_lines(cropped_frame, averaged_lines, center_line)
-    combo_image = addWeighted(cropped_frame, line_image)
-
-    # Convert the OpenCV frame to a PIL Image (RGBA)
-    frame_pil = Image.fromarray(cv2.cvtColor(combo_image, cv2.COLOR_BGR2RGB)).convert("RGBA")
-
-
-    # Position the overlay in the top-left corner of the frame
-    position = (0, 0)  # Change to (frame_width - overlay_rotated_width, 0) for top-right corner, etc.
-    # Paste the rotated overlay image onto the frame using alpha blending (preserving transparency)
-    frame_pil.paste(overlay_rotated, position, overlay_rotated)
-
-
-    # Convert back to OpenCV format (BGR)
-    frame_bgr = cv2.cvtColor(np.array(frame_pil), cv2.COLOR_RGBA2BGR)
-
-
-    cv2.imshow("result", frame_bgr)
-    cv2.imshow("thresh", silver_threshold(cropped_frame))
-
-
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+import PIL
+
+# Read image
+try:
+       cap = cv2.VideoCapture("curvedParallelLines/video-24859.MOV")
+except Exception:
+       print("video could not be found")
+
+
+arrow = Image.open("curvedParallelLines/arrow3.png").convert("RGBA")
+arrow = arrow.rotate(180, PIL.Image.NEAREST, expand=1)
+slopes = []
+MIN_DISTANCE=50
+while True:
+       
+       ret, frame = cap.read()
+       if not ret:
+               print("failed to capture frame")
+               break
+
+       height, width = frame.shape[:2]
+       test = frame[:int(height*0.6), :]
+       output = test.copy()
+       height1, width1 = test.shape[:2]
+       print(width1, height1)
+       print(width, height)
+       mask = np.zeros_like(output)
+       triangle = np.array([[(width1*0.1, height1), (width1*0.5, height1*0.4), (width1*1, height1)]], dtype=np.int32)
+       triangle = triangle.reshape((-1, 1, 2))
+       cv2.fillPoly(mask, [triangle], (255, 255, 255))
+       cv2.polylines = (output, [triangle], True, (255, 0, 0), 3)
+       masked_image = cv2.bitwise_and(output, mask)
+
+
+       """hsv_image = cv2.cvtColor(masked_image, cv2.COLOR_BGR2HSV)
+       lower_silver = np.array([0, 0, 0], dtype = np.uint8)
+       upper_silver = np.array([180, 50, 200], dtype = np.uint8)
+       thresh = cv2.inRange(hsv_image, lower_silver, upper_silver)"""
+       gaussian = cv2.blur(masked_image, (7, 7))
+       edges = cv2.Canny(gaussian, 25, 75)
+
+       
+       lines = cv2.HoughLinesP(
+                   edges,
+                   2, 
+                   np.pi/180,
+                   threshold=50, 
+                   minLineLength=30, 
+                   maxLineGap=70 
+                   )
+       #cv2.polylines(output, vertices, True, (0, 0, 255), 3)
+
+
+       first_lane_lines = []
+       second_lane_lines = []
+     
+
+       if lines is not None:
+        for points in lines:
+            print(len(lines))
+            x1, y1, x2, y2 = points[0]
+
+            slope = (y2 - y1) / (x2 - x1) if x2 != x1 else 0
+
+            
+            if slope > 0:  
+                second_lane_lines.append([(x1, y1), (x2, y2), slope])
+
+            elif slope < 0:
+                first_lane_lines.append([(x1, y1), (x2, y2), slope])
+
+                
+       if len(first_lane_lines) > 0 and len(second_lane_lines) > 0:
+            avg_r_slope = 0
+            avg_l_slope = 0
+            l_slope_weight = 0
+            r_slope_weight = 0
+            left_point = ()
+            right_point = ()
+            """FORMULAS
+            line is y=mx +b
+            y intercept is y-mx
+            points for line drawing is the line (y=mx+b) for both left and right intersections with y=height and y=height//2
+            ^^ only if this is vertical
+            otherwise with 
+            """
+            try:
+                for n in range(len(first_lane_lines)):
+                        slope = first_lane_lines[n][2]
+                        if avg_l_slope == 0:
+                            avg_l_slope = slope
+                        elif 0.9 <= avg_l_slope/slope <= 1.1:
+                            l_slope_weight += 1
+                            avg_l_slope = (l_slope_weight*avg_l_slope + slope)/(l_slope_weight+1)
+                            left_point = first_lane_lines[n]
+
+                l_y_int = np.float64(left_point[0][1])-avg_l_slope*np.float64(left_point[0][0])
+                if abs(avg_l_slope)>0.75:
+                    first_x1 = (np.float64(height)-l_y_int)/avg_l_slope
+                    first_y1 = np.float64(height)
+                    first_x2 = (np.float64(height)-2*l_y_int)/(2*avg_l_slope)
+                    first_y2 = np.float64(height/2)
+
+                else:
+                    first_x1 = np.float64(width/4)
+                    first_y1 = (4*l_y_int+avg_l_slope*np.float64(width))/4
+                    first_x2 = np.float64(3*width/4)
+                    first_y2 = (4*l_y_int+avg_l_slope*3*np.float64(width))/4
+
+            except Exception:
+                print(Exception)
+            
+
+            try:
+                for n in range(len(second_lane_lines)):
+                        slope = second_lane_lines[n][2]
+                        if avg_r_slope == 0:
+                            avg_r_slope = slope
+                        elif 0.9 <= avg_r_slope/slope <= 1.1:
+                            r_slope_weight += 1
+                            avg_r_slope = (r_slope_weight*avg_r_slope + slope)/(r_slope_weight+1)
+                            right_point = second_lane_lines[n]
+
+                r_y_int = np.float64(right_point[0][1])-avg_r_slope*np.float64(right_point[0][0])
+                if abs(avg_r_slope)>0.75:
+                    second_x1 = (np.float64(height)-r_y_int)/avg_r_slope
+                    second_y1 = np.float64(height)
+                    second_x2 = (np.float64(height)-2*r_y_int)/(2*avg_r_slope)
+                    second_y2 = np.float64(height/2)
+                else:
+                    second_x1 = np.float64(width/4)
+                    second_y1 = (4*r_y_int+avg_r_slope*np.float64(width))/4
+                    second_x2 = np.float64(3*width/4)
+                    second_y2 = (4*r_y_int+avg_r_slope*3*np.float64(width))/4
+
+            except Exception:
+                print(Exception)
+            
+            # lines in form y = mx + b || m is left/right slope || b find with intersection with frame boundaries
+            try:
+
+                first_point1 = tuple(np.round(np.array([first_x1, first_y1], dtype=np.float64)).astype(np.int32))
+                first_point2 = tuple(np.round(np.array([first_x2, first_y2], dtype=np.float64)).astype(np.int32))
+                second_point1 = tuple(np.round(np.array([second_x1, second_y1], dtype=np.float64)).astype(np.int32))
+                second_point2 = tuple(np.round(np.array([second_x2, second_y2], dtype=np.float64)).astype(np.int32))
+
+                cv2.line(output, first_point1, first_point2, (0, 255, 0), 2)
+                cv2.line(output, second_point1, second_point2, (0, 255, 0), 2)
+
+                print(first_point2[0])
+                center_x1 = (first_point1[0]+second_point1[0])//2
+                center_y1 = (first_point1[1]+second_point1[1])//2
+                center_x2 = (first_point2[0]+second_point2[0])//2
+                center_y2 = (first_point2[1]+second_point2[1])//2
+
+                cv2.line(output, (center_x1, center_y1), (center_x2, center_y2), (0, 0, 255), 4)
+            except Exception:
+                print(Exception)
+
+
+       cv2.imshow('Detected Lines and Centerline', output)
+
+
+       if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
 
 cap.release()
-cv2.destroyAllWindows()
 cv2.destroyAllWindows()
