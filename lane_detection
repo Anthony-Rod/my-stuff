@@ -25,10 +25,8 @@ while True:
        test = frame[:int(height*0.6), :]
        output = test.copy()
        height1, width1 = test.shape[:2]
-       print(width1, height1)
-       print(width, height)
        mask = np.zeros_like(output)
-       triangle = np.array([[(width1*0.1, height1), (width1*0.5, height1*0.4), (width1*1, height1)]], dtype=np.int32)
+       triangle = np.array([[(width1, height1*0.9), (width1*0.5, height1*0.4), (width1*1, height1)]], dtype=np.int32)
        triangle = triangle.reshape((-1, 1, 2))
        cv2.fillPoly(mask, [triangle], (255, 255, 255))
        cv2.polylines = (output, [triangle], True, (255, 0, 0), 3)
@@ -39,7 +37,7 @@ while True:
        lower_silver = np.array([0, 0, 0], dtype = np.uint8)
        upper_silver = np.array([180, 50, 200], dtype = np.uint8)
        thresh = cv2.inRange(hsv_image, lower_silver, upper_silver)"""
-       gaussian = cv2.blur(masked_image, (7, 7))
+       gaussian = cv2.blur(masked_image, (3, 3))
        edges = cv2.Canny(gaussian, 25, 75)
 
        
@@ -48,118 +46,64 @@ while True:
                    2, 
                    np.pi/180,
                    threshold=50, 
-                   minLineLength=30, 
-                   maxLineGap=70 
+                   minLineLength=20, 
+                   maxLineGap=50 
                    )
        #cv2.polylines(output, vertices, True, (0, 0, 255), 3)
 
 
-       first_lane_lines = []
-       second_lane_lines = []
+       left_lane_lines = np.array([])
+       right_lane_lines = np.array([])
      
-
        if lines is not None:
         for points in lines:
-            print(len(lines))
             x1, y1, x2, y2 = points[0]
-
+            print(points[0])
             slope = (y2 - y1) / (x2 - x1) if x2 != x1 else 0
-
+            print(slope)
             
             if slope > 0:  
-                second_lane_lines.append([(x1, y1), (x2, y2), slope])
+                print("got here")
+                right_lane_lines = np.append(right_lane_lines, [(x1, y1), (x2, y2)])
 
             elif slope < 0:
-                first_lane_lines.append([(x1, y1), (x2, y2), slope])
+                print("got here!")
+                left_lane_lines = np.append(left_lane_lines, [(x1, y1), (x2, y2)])
 
-                
-       if len(first_lane_lines) > 0 and len(second_lane_lines) > 0:
-            avg_r_slope = 0
-            avg_l_slope = 0
-            l_slope_weight = 0
-            r_slope_weight = 0
-            left_point = ()
-            right_point = ()
-            """FORMULAS
-            line is y=mx +b
-            y intercept is y-mx
-            points for line drawing is the line (y=mx+b) for both left and right intersections with y=height and y=height//2
-            ^^ only if this is vertical
-            otherwise with 
-            """
-            try:
-                for n in range(len(first_lane_lines)):
-                        slope = first_lane_lines[n][2]
-                        if avg_l_slope == 0:
-                            avg_l_slope = slope
-                        elif 0.9 <= avg_l_slope/slope <= 1.1:
-                            l_slope_weight += 1
-                            avg_l_slope = (l_slope_weight*avg_l_slope + slope)/(l_slope_weight+1)
-                            left_point = first_lane_lines[n]
+       
+       if len(left_lane_lines) > 0 and len(right_lane_lines) > 0:
 
-                l_y_int = np.float64(left_point[0][1])-avg_l_slope*np.float64(left_point[0][0])
-                if abs(avg_l_slope)>0.75:
-                    first_x1 = (np.float64(height)-l_y_int)/avg_l_slope
-                    first_y1 = np.float64(height)
-                    first_x2 = (np.float64(height)-2*l_y_int)/(2*avg_l_slope)
-                    first_y2 = np.float64(height/2)
+        
+        #left lanes
+        leftx=np.array([])
+        lefty=np.array([])
+        #right lanes
+        rightx=np.array([])
+        righty=np.array([])
+        for n in left_lane_lines:
+            leftx = np.append(leftx, n[0][0])
+            lefty = np.append(lefty, n[0][1])
+            leftx = np.append(leftx, n[1][0])
+            lefty = np.append(lefty, n[1][1])
+        for n in right_lane_lines:
+            rightx = np.append(rightx, n[0][0])
+            righty = np.append(righty, n[0][1])
+            rightx = np.append(rightx, n[1][0])
+            righty = np.append(righty, n[1][1])
 
-                else:
-                    first_x1 = np.float64(width/4)
-                    first_y1 = (4*l_y_int+avg_l_slope*np.float64(width))/4
-                    first_x2 = np.float64(3*width/4)
-                    first_y2 = (4*l_y_int+avg_l_slope*3*np.float64(width))/4
-
-            except Exception:
-                print(Exception)
             
-
-            try:
-                for n in range(len(second_lane_lines)):
-                        slope = second_lane_lines[n][2]
-                        if avg_r_slope == 0:
-                            avg_r_slope = slope
-                        elif 0.9 <= avg_r_slope/slope <= 1.1:
-                            r_slope_weight += 1
-                            avg_r_slope = (r_slope_weight*avg_r_slope + slope)/(r_slope_weight+1)
-                            right_point = second_lane_lines[n]
-
-                r_y_int = np.float64(right_point[0][1])-avg_r_slope*np.float64(right_point[0][0])
-                if abs(avg_r_slope)>0.75:
-                    second_x1 = (np.float64(height)-r_y_int)/avg_r_slope
-                    second_y1 = np.float64(height)
-                    second_x2 = (np.float64(height)-2*r_y_int)/(2*avg_r_slope)
-                    second_y2 = np.float64(height/2)
-                else:
-                    second_x1 = np.float64(width/4)
-                    second_y1 = (4*r_y_int+avg_r_slope*np.float64(width))/4
-                    second_x2 = np.float64(3*width/4)
-                    second_y2 = (4*r_y_int+avg_r_slope*3*np.float64(width))/4
-
-            except Exception:
-                print(Exception)
-            
-            # lines in form y = mx + b || m is left/right slope || b find with intersection with frame boundaries
-            try:
-
-                first_point1 = tuple(np.round(np.array([first_x1, first_y1], dtype=np.float64)).astype(np.int32))
-                first_point2 = tuple(np.round(np.array([first_x2, first_y2], dtype=np.float64)).astype(np.int32))
-                second_point1 = tuple(np.round(np.array([second_x1, second_y1], dtype=np.float64)).astype(np.int32))
-                second_point2 = tuple(np.round(np.array([second_x2, second_y2], dtype=np.float64)).astype(np.int32))
-
-                cv2.line(output, first_point1, first_point2, (0, 255, 0), 2)
-                cv2.line(output, second_point1, second_point2, (0, 255, 0), 2)
-
-                print(first_point2[0])
-                center_x1 = (first_point1[0]+second_point1[0])//2
-                center_y1 = (first_point1[1]+second_point1[1])//2
-                center_x2 = (first_point2[0]+second_point2[0])//2
-                center_y2 = (first_point2[1]+second_point2[1])//2
-
-                cv2.line(output, (center_x1, center_y1), (center_x2, center_y2), (0, 0, 255), 4)
-            except Exception:
-                print(Exception)
-
+        
+        leftLine = np.polyfit(leftx, lefty, 1)
+        rightLine = np.polyfit(rightx, righty, 1)
+        print(leftLine)
+        #formula = y=mx+b | m =_Line[0] b =_Line[1]
+        intersectL_bottom = ((height1-leftLine[1])//leftLine[0],height1)
+        intersectR_bottom = ((height1-rightLine[1])//rightLine[0],height1)
+        intersectL_top = ((-leftLine[1])//((6*height1//5*width1)+leftLine[0]),height1*0.4)
+        intersectR_top = ((leftLine[1])//((6*height1//5*width1)-leftLine[0]),height1*0.4)
+        cv2.line(output, intersectL_bottom, intersectL_top, (255, 0, 0), 3)
+        cv2.line(output, intersectR_bottom, intersectR_top, (255, 0, 0), 3)
+        
 
        cv2.imshow('Detected Lines and Centerline', output)
 
